@@ -13,7 +13,6 @@ def handle_detected_updates(file_path):
     profile = {}
     profiles = []
     rules = []
-    vars = []
     # Open the file and process it line by line
     with open(file_path, 'r') as file:
         for line in file:
@@ -33,14 +32,14 @@ def handle_detected_updates(file_path):
                 rules.append(rulename)
             elif '.var' in line and line.endswith('.var'):
                 rulename = line.split('/')[-1].split('.')[0]
-                vars.append(rulename)
-    return controls, profiles, rules, vars
+                rules.append(rulename)
+    return controls, profiles, rules
             
 
 def main(file_path):
-    controls, profiles, rules, vars = handle_detected_updates(file_path)
+    controls, profiles, rules = handle_detected_updates(file_path)
     #for i in [controls, profiles, rules, vars]:
-    for i in [controls, profiles, rules, vars]:
+    for i in [controls, profiles, rules]:
         logging.info(" ".join(i))
    
 

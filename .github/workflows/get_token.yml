@@ -59,6 +59,10 @@ jobs:
             | jq -r '.token')
           echo "INSTALLATION_TOKEN=$INSTALLATION_TOKEN" >> $GITHUB_ENV
           echo "::add-mask::$INSTALLATION_TOKEN" # Mask the token in logs
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
       # Step 5: Detect the updates of CAC content
       - name: Detect the changed files of the PR
         id: changed-files
@@ -85,3 +89,37 @@ jobs:
           for product in "${RH_PRODUCTS[@]}"; do
             echo $product
           done
+      - name: Handle detected updates
+        run: |
+          python util/handle_detected_updates.py 'util/input.txt' > updates 2>&1
+          RH_PRODUCTS=${{ env.RH_PRODUCTS }}
+          i=0
+          while IFS= read -r line; do
+              i=$((i + 1))
+              if [[ $i -eq 1 ]]; then
+                echo $line > updated_controls  
+              elif [[ $i -eq 2 ]]; then
+                profiles=($(echo "$line"| sed "s/{'/{\"/g; s/': '/\":\"/g; s/', '/\",\"/g; s/'}/\"}/g;"))
+                for profile in "${profiles[@]}"; do
+                  product=$(echo "$profile" | jq -r '.product')
+                  profile_name=$(echo "$profile" | jq -r '.profile_name')
+                  echo $profile_name >> $product"_updated_profiles"
+                done
+              elif [[ $i -eq 3 ]]; then
+                rules=($line)
+                for rule in "${rules[@]}"; do
+                  echo $rule
+                  for product in "${RH_PRODUCTS[@]}"; do
+                    #python scripts/get_rule_impacted_files.py $product "$GITHUB_WORKSPACE/cac-content" $value control >> rule_impacted_controls 2>&1 
+                    #python scripts/get_rule_impacted_files.py $product "$GITHUB_WORKSPACE/cac-content" $value profile >> $product"_rule_impacted_profiles" 2>&1
+                    echo "get the $rule impacted controls"
+                    echo "get the $rule impacted profiles: $product"
+                  done
+                done
+              fi
+          done < updates
+          cat updated_controls
+          cat rhel8_updated_profiles
+          cat rhel9_updated_profiles
+          cat rhel10_updated_profiles
+
