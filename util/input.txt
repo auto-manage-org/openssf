@@ -1,0 +1,9 @@
+linux/rulename/rule.yml
+controls/controlname.yml
+products/rhel10/profiles/profilename.profile
+products/rhel9/profiles/anssi.profile
+products/rhel9/profiles/cis.profile
+products/rhel8/profiles/anssi.profile
+linux/var/varname.var
+controls/cis_ocp_1_4_0/section-4.yml
+controls/srg_ctr/SRG-OS-123.yml
