@@ -59,15 +59,23 @@ jobs:
             | jq -r '.token')
           echo "INSTALLATION_TOKEN=$INSTALLATION_TOKEN" >> $GITHUB_ENV
           echo "::add-mask::$INSTALLATION_TOKEN" # Mask the token in logs
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
       # Step 5: Detect the updates of CAC content
       - name: Detect the changed files of the PR
         id: changed-files
         run: |
-          response=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files?per_page=50)
+          pr_number=${{ github.event.pull_request.number }}
+          repo=${{ github.repository }}
+          # Function to fetch all pages
+          url="repos/$repo/pulls/$pr_number/files"
+          response=$(gh api "$url" --paginate)
           echo "$response" | jq -r '.[].filename' > filenames.txt
+
           echo "CHANGE_FOUND=false" >> $GITHUB_ENV
-          #if grep -E "controls/|.profile|rule.yml|.var" filenames.txt ; then
-          if grep -E ".yml|.var" filenames.txt ; then
+          if grep -E "controls/|.profile|rule.yml|.var" filenames.txt ; then
             echo "CHANGE_FOUND=true" >> $GITHUB_ENV
           fi
           cat filenames.txt
@@ -85,3 +93,31 @@ jobs:
           for product in "${RH_PRODUCTS[@]}"; do
             echo $product
           done
+      - name: Handle detected updates
+        run: |
+          python util/handle_detected_updates.py 'util/input.txt' > updates 2>&1
+          RH_PRODUCTS=${{ env.RH_PRODUCTS }}
+          i=0
+          while IFS= read -r line; do
+              i=$((i + 1))
+              if [[ $i -eq 1 ]]; then
+                echo $line > updated_controls  
+              elif [[ $i -eq 2 ]]; then
+                profiles=($(echo "$line"| sed "s/{'/{\"/g; s/': '/\":\"/g; s/', '/\",\"/g; s/'}/\"}/g;"))
+                for profile in "${profiles[@]}"; do
+                  product=$(echo "$profile" | jq -r '.product')
+                  profile_name=$(echo "$profile" | jq -r '.profile_name')
+                  echo $profile_name >> $product"_updated_profiles"
+                done
+              elif [[ $i -eq 3 ]]; then
+                rules=($line)
+                for rule in "${rules[@]}"; do
+                  echo "get the $rule impacted controls"
+                  #python scripts/get_rule_impacted_files.py $RH_PRODUCTS "$GITHUB_WORKSPACE/cac-content" $value control >> rule_impacted_controls 2>&1 
+                  for product in "${RH_PRODUCTS[@]}"; do
+                    #python scripts/get_rule_impacted_files.py $product "$GITHUB_WORKSPACE/cac-content" $value profile >> $product"_rule_impacted_profiles" 2>&1
+                    echo "get the $rule impacted profiles: $product"
+                  done
+                done
+              fi
+          done < updates

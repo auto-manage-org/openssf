@@ -5,15 +5,26 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 def handle_detected_updates(file_path):
     """
-    Read the file which has the CAC updated files.
-    And return the updated controls, profiles, rules and variables
+    Read the file which contains the PR's updated files.
+
+    This function processes a file that includes paths of updated files.
+    It extracts and categorizes the updated controls, profiles, rules, and variables
+    based on the file paths.
+
+    Args:
+    file_path (str): The path to the file that contains the list of updated file paths.
+
+    Returns:
+        Tuple containing:
+        - List of control names
+        - List of profile dictionaries (with profile_name and product)
+        - List of rule and variable names
     """
 
     controls = []
     profile = {}
     profiles = []
     rules = []
-    vars = []
     # Open the file and process it line by line
     with open(file_path, 'r') as file:
         for line in file:
@@ -33,16 +44,16 @@ def handle_detected_updates(file_path):
                 rules.append(rulename)
             elif '.var' in line and line.endswith('.var'):
                 rulename = line.split('/')[-1].split('.')[0]
-                vars.append(rulename)
-    return controls, profiles, rules, vars
-            
+                rules.append(rulename)
+    return controls, profiles, rules
+
 
 def main(file_path):
-    controls, profiles, rules, vars = handle_detected_updates(file_path)
+    controls, profiles, rules = handle_detected_updates(file_path)
     #for i in [controls, profiles, rules, vars]:
-    for i in [controls, profiles, rules, vars]:
+    for i in [controls, profiles, rules]:
         logging.info(" ".join(i))
-   
+
 
 if __name__ == "__main__":
     # Ensure that the script is run with the correct number of arguments
