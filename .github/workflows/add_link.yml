@@ -1,0 +1,105 @@
+name: Sync CaC content to OSCAL
+permissions:
+  contents: write
+  pull-requests: read
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  
+  check-token:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Set up Python 3
+      - name: Set up Python 3
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          pip install pyjwt cryptography
+      # Step 2: Install Git
+      - name: Install Git
+        run: sudo apt-get update && sudo apt-get install -y git
+      # Step 4: Get the access token for content write permission to OSCAL content
+      # 1. Generate the JWT token
+      # 2. Generate the installation ID(It's pre-generated)
+      # 3. Generate the installation access token
+      - name: Generate JWT Token
+        id: generate-jwt
+        run: |
+          # Generate JWT using Ruby
+          JWT=$(ruby -r jwt -e '
+            payload = {
+              iat: Time.now.to_i,
+              exp: Time.now.to_i + (10 * 60), # Expires in 10 mins
+              iss: ENV["APP_ID"]
+            }
+            private_key = OpenSSL::PKey::RSA.new(ENV["PRIVATE_KEY"])
+            token = JWT.encode(payload, private_key, "RS256")
+            puts token
+          ')
+          echo "JWT_TOKEN=$JWT" >> $GITHUB_ENV
+          echo "::add-mask::$JWT" # Mask the token in logs
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      # Generate the GitHub app installation access token which expires in 1 hour
+      - name: Get Installation Access Token
+        id: get-installation-token
+        run: |
+          INSTALLATION_TOKEN=$(curl -s -X POST \
+            -H "Authorization: Bearer ${{ env.JWT_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/app/installations/${{ secrets.INSTALLATION_ID }}/access_tokens \
+            | jq -r '.token')
+          echo "INSTALLATION_TOKEN=$INSTALLATION_TOKEN" >> $GITHUB_ENV
+          echo "::add-mask::$INSTALLATION_TOKEN" # Mask the token in logs
+      - name: Checkout repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: auto-manage-org/openssf
+          path: openssf
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+      - name: Create a Pull Request to OSCAL content
+        run: |
+          cd openssf
+          PR_NUMBER="test"
+          echo "PR_NUMBER="test"" >> $GITHUB_ENV
+          BRANCH_NAME="sync_oscal_pr$PR_NUMBER"
+          git checkout -b $BRANCH_NAME origin/$BRANCH_NAME
+          echo "This is a test." > test.txt
+          git add .
+          git commit -m "This is a test"
+          git push origin $BRANCH_NAME
+          OWNER="auto-manage-org"
+          REPO="openssf"
+          URL="https://github.com/ComplianceAsCode/oscal-content/pull/"
+          if [[ "$(git branch --show-current)" == "$BRANCH_NAME" ]]; then
+            # Check if the PR exists
+            PR_EXISTS=$(gh pr list --repo $OWNER/$REPO \
+              --head $BRANCH_NAME --state open --json id \
+              | jq length)
+            # Get commits between main and branch
+            commits=$(git log main..$BRANCH_NAME --oneline)
+            # If the PR does not exist and there are commits in the branch,
+            # then create a PR for this branch.
+            if [ "$PR_EXISTS" -gt 0 ]; then
+              echo "PR $BRANCH_NAME already exists. Skipping PR creation."
+            elif [ -z "$commits" ]; then
+              echo "No commits between main and $BRANCH_NAME. Skipping PR creation."
+            else
+              echo "Creating PR for new branch: $BRANCH_NAME"
+              gh pr create --repo $OWNER/$REPO \
+                --title "Auto-generated PR from OSCAL ${{ env.PR_NUMBER }}" \
+                --head "$BRANCH_NAME" \
+                --base "main" \
+                --body "This is an auto-generated PR from OSCAL [${{ env.PR_NUMBER }}]($URL$PR_NUMBER)"
+            fi
+          else
+            echo "No branch $BRANCH_NAME. Skipping PR creation."
+          fi
+        env:
+          GH_TOKEN: ${{ env.INSTALLATION_TOKEN }}
