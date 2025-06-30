@@ -12,7 +12,7 @@
 echo "Starting Git Commit Squasher Script..."
 
 # Check for a clean working directory
-if [[ -n $(git status --porcelain) ]]; then
+if [ -n $(git status --porcelain) ]; then
   echo "Error: Your working directory is not clean."
   echo "Please commit or stash your changes before attempting to squash commits."
   exit 1
@@ -24,19 +24,18 @@ REBASE_RANGE=""
 NUM_COMMITS_TO_SQUASH=0 # Used for validation
 
 # Parse command line arguments - expecting only one numeric argument
-if [[ $# -ne 1 ]]; then
+if [ $# -ne 1 ]; then
   echo "Error: Incorrect number of arguments."
   usage
 fi
 
-if ! [[ "$1" =~ ^[0-9]+$ ]]; then
+if ! [ "$1" =~ ^[0-9]+$ ]; then
   echo "Error: Argument must be a positive integer representing the number of commits."
-  usage
 fi
 
 NUM_COMMITS_TO_SQUASH=$1
 
-if [[ $NUM_COMMITS_TO_SQUASH -le 1 ]]; then
+if [ $NUM_COMMITS_TO_SQUASH -le 1 ]; then
   echo "Nothing to squash. You need at least 2 commits to perform a squash operation."
   exit 0
 fi
@@ -64,7 +63,7 @@ git rebase -i "$REBASE_RANGE"
 REBASE_STATUS=$?
 
 # Check the exit status of the git rebase command
-if [[ $REBASE_STATUS -ne 0 ]]; then
+if [ $REBASE_STATUS -ne 0 ]; then
   echo ""
   echo "---------------------------------------------------------"
   echo "Git rebase failed. This often means there were conflicts."
@@ -84,7 +83,7 @@ else
   CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
   # Get upstream remote and branch if it exists, otherwise default to 'origin' and current branch
   UPSTREAM_INFO=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
-  if [[ -n "$UPSTREAM_INFO" ]]; then
+  if [ -n "$UPSTREAM_INFO" ]; then
     UPSTREAM_REMOTE="${UPSTREAM_INFO%%/*}"
     UPSTREAM_BRANCH="${UPSTREAM_INFO#*/}"
   else
@@ -95,7 +94,7 @@ else
   echo "Pushing to $UPSTREAM_REMOTE/$UPSTREAM_BRANCH..."
   git push "$UPSTREAM_REMOTE" "$CURRENT_BRANCH" --force-with-lease
 
-  if [[ $? -ne 0 ]]; then
+  if [ $? -ne 0 ]; then
     echo "Error: Git push failed. Please check your permissions and connectivity."
     echo "You may need to run 'git push --force-with-lease' manually."
   else
