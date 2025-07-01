@@ -1,7 +1,7 @@
 name: Create PR from openssl to test-org-management
 permissions:
   contents: write
-  pull-requests: read
+  pull-requests: write
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -60,9 +60,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: auto-manage-org/openssf
-          path: openssl
-          token: ${{ env.INSTALLATION_TOKEN }}
-          fetch-depth: 0
+          path: openssf
       - name: Checkout repo test-org-management
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -75,7 +73,43 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number }}
           echo "$PR_NUMBER"
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+      - name: Squash commits
+        id: squash_logic
+        run: |
+          cd test-org-management
+          # The email format for GitHub Apps is typically: APP_ID+[APP_NAME]@users.noreply.github.com
+          git config user.name "huiwang-create-github-app-token" # Use App Name if secret exists, else github.actor
+          git config user.email "${{ secrets.APP_ID }}+huiwang-create-github-app-token@users.noreply.github.com" # Specific App email
+          echo "${{ env.PR_NUMBER }}"
+          BRANCH_NAME="sync_oscal_pr${{ env.PR_NUMBER }}"
+          # Check if the exist origin/$BRANCH_NAME
+          git checkout -b $BRANCH_NAME origin/$BRANCH_NAME
+          echo "PR_SKIP=false" >> $GITHUB_ENV
+          if [ "$(git branch --show-current)" == "$BRANCH_NAME" ]; then
+            SQUASH_COUNT=$(git rev-list --count main..HEAD)
+            if [[ "$SQUASH_COUNT" -eq 0 ]]; then
+              echo "No commit of the branch."
+              echo "PR_SKIP=true" >> $GITHUB_ENV
+            elif [ "$SQUASH_COUNT" -le 1 ]; then
+              echo "::notice::Branch has 0 or 1 commit (or target count is too low). No squashing needed."
+            else
+              # Call the squash script using the calculated count
+              ls $GITHUB_WORKSPACE
+              ls $GITHUB_WORKSPACE/openssf
+              chmod +x $GITHUB_WORKSPACE/openssf/squash.sh
+              $GITHUB_WORKSPACE/openssf/squash.sh "$SQUASH_COUNT"
+              # Note: The path above is the absolute path to where actions/checkout places Repo B's contents.
+              # Adjust if your setup differs.
+            fi
+          else
+            echo "PR_SKIP=true" >> $GITHUB_ENV
+            echo "No branch $BRANCH_NAME. Skipping squash and create PR."
+          fi
+        shell: bash
+        env:
+          GH_TOKEN: ${{ env.INSTALLATION_TOKEN }}
       - name: Create a Pull Request to auto-manage-org
+        if: ! ${{ env.PR_SKIP }}
         run: |
           cd test-org-management
           pwd
@@ -85,13 +119,9 @@ jobs:
           echo "${{ env.PR_NUMBER }}"
           BRANCH_NAME="sync_oscal_pr${{ env.PR_NUMBER }}"
           echo "$BRANCH_NAME"
-          git checkout -b $BRANCH_NAME origin/$BRANCH_NAME
           OWNER="auto-manage-org"
           REPO="test-org-management"
           URL="https://github.com/auto-manage-org/openssf/pull/${{ env.PR_NUMBER }}"
-          echo "$URL"
-          echo "("$URL")"
-          ls ../openssl
           if [[ "$(git branch --show-current)" == "$BRANCH_NAME" ]]; then
             # Check if the PR exists
             PR_EXISTS=$(gh pr list --repo $OWNER/$REPO \
@@ -104,13 +134,7 @@ jobs:
             # then create a PR for this branch.
             if [ "$PR_EXISTS" -gt 0 ]; then
               echo "PR $BRANCH_NAME already exists. Skipping PR creation."
-            elif [[ "$commits" -eq 0 ]]; then
-              echo "No commits between main and $BRANCH_NAME. Skipping PR creation."
-            elif [[ "$commits" -gt 0 ]]; then
-              echo "sh ../openssl/squash.sh $commits"
-              echo "$(git status --porcelain)"
-              echo "$(git log)"
-              sh ../openssl/squash.sh $commits
+            elif [[ "$commits" -eq 1 ]]; then
               echo "Creating PR for new branch: $BRANCH_NAME"
               PR_BODY="This is an auto-generated PR from OSCAL [${{ env.PR_NUMBER }}]("$URL")"
               echo "$PR_BODY"
