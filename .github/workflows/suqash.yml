@@ -78,8 +78,10 @@ jobs:
         run: |
           cd test-org-management
           # The email format for GitHub Apps is typically: APP_ID+[APP_NAME]@users.noreply.github.com
-          git config user.name "huiwang-create-github-app-token" # Use App Name if secret exists, else github.actor
-          git config user.email "${{ secrets.APP_ID }}+huiwang-create-github-app-token@users.noreply.github.com" # Specific App email
+          #git config user.name "huiwang-create-github-app-token" # Use App Name if secret exists, else github.actor
+          #git config user.email "${{ secrets.APP_ID }}+huiwang-create-github-app-token@users.noreply.github.com" # Specific App email
+          git config user.name "tester"
+          git config user.email "tester@redhat.com"
           echo "${{ env.PR_NUMBER }}"
           BRANCH_NAME="sync_oscal_pr${{ env.PR_NUMBER }}"
           # Check if the exist origin/$BRANCH_NAME
@@ -90,13 +92,13 @@ jobs:
             if [[ "$SQUASH_COUNT" -eq 0 ]]; then
               echo "No commit of the branch."
               echo "PR_SKIP=true" >> $GITHUB_ENV
-            elif [ "$SQUASH_COUNT" -le 1 ]; then
-              echo "::notice::Branch has 0 or 1 commit (or target count is too low). No squashing needed."
+            elif [ "$SQUASH_COUNT" -eq 1 ]; then
+              echo "::notice::Branch has 1 commit (or target count is too low). No squashing needed."
             else
               # Call the squash script using the calculated count
               ls $GITHUB_WORKSPACE
               ls $GITHUB_WORKSPACE/openssf
-              chmod +x $GITHUB_WORKSPACE/openssf/squash.sh
+              #chmod +x $GITHUB_WORKSPACE/openssf/squash.sh
               $GITHUB_WORKSPACE/openssf/squash.sh "$SQUASH_COUNT"
               # Note: The path above is the absolute path to where actions/checkout places Repo B's contents.
               # Adjust if your setup differs.
