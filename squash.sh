@@ -1,16 +1,16 @@
 #!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
 
-# squash_commits.sh
-# This script automates squashing the latest N Git commits into a single one.
+# The CI of sync content between CAC and OSCAL will run complyscribe many times.
+# The auto-generated PRs of CAC and OSCAL content repos have multiple commits.
+# This script uses `git rebase -i` and automates squashing the latest N Git commits into a single one.
 # It automatically keeps the oldest commit's message and pushes the result.
-# It uses `git rebase -i` and automates the interactive part using GIT_SEQUENCE_EDITOR.
-
 # Usage:
-# sh squash_commits.sh $number_of_commits_to_squash
+# sh squash.sh $number_of_commits_to_squash
 
 
 echo "Starting Git Commit Squasher Script..."
-echo $(git status)
+
 # Check for a clean working directory
 if [[ -n $(git status --porcelain) ]]; then
   echo "Error: Your working directory is not clean."
@@ -25,7 +25,7 @@ NUM_COMMITS_TO_SQUASH=0 # Used for validation
 
 # Parse command line arguments - expecting only one numeric argument
 if [[ $# -ne 1 ]]; then
-  echo "Error: Incorrect number of arguments."
+  echo "Error: Incorrect number of commits to squash of argument."
   usage
 fi
 
@@ -63,7 +63,7 @@ git rebase -i "$REBASE_RANGE"
 REBASE_STATUS=$?
 
 # Check the exit status of the git rebase command
-if [[] $REBASE_STATUS -ne 0 ]]; then
+if [[ $REBASE_STATUS -ne 0 ]]; then
   echo ""
   echo "---------------------------------------------------------"
   echo "Git rebase failed. This often means there were conflicts."
@@ -81,20 +81,11 @@ else
 
   echo "Attempting to push changes to remote..."
   CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-  # Get upstream remote and branch if it exists, otherwise default to 'origin' and current branch
-  UPSTREAM_INFO=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
-  if [ -n "$UPSTREAM_INFO" ]; then
-    UPSTREAM_REMOTE="${UPSTREAM_INFO%%/*}"
-    UPSTREAM_BRANCH="${UPSTREAM_INFO#*/}"
-  else
-    UPSTREAM_REMOTE="origin"
-    UPSTREAM_BRANCH="$CURRENT_BRANCH"
-  fi
+  UPSTREAM_REMOTE="origin"
 
-  echo "Pushing to $UPSTREAM_REMOTE/$UPSTREAM_BRANCH..."
-  git push "$UPSTREAM_REMOTE" "$CURRENT_BRANCH" --force-with-lease
+  echo "Pushing to $UPSTREAM_REMOTE/$CURRENT_BRANCH..."
 
-  if [[ $? -ne 0 ]]; then
+  if ! git push "$UPSTREAM_REMOTE" "$CURRENT_BRANCH" --force-with-lease; then
     echo "Error: Git push failed. Please check your permissions and connectivity."
     echo "You may need to run 'git push --force-with-lease' manually."
   else
