@@ -10,7 +10,7 @@
 
 
 echo "Starting Git Commit Squasher Script..."
-
+echo $(git status)
 # Check for a clean working directory
 if [[ -n $(git status --porcelain) ]]; then
   echo "Error: Your working directory is not clean."
@@ -31,7 +31,6 @@ fi
 
 if ! [[ "$1" =~ ^[0-9]+$ ]]; then
   echo "Error: Argument must be a positive integer representing the number of commits."
-  usage
 fi
 
 NUM_COMMITS_TO_SQUASH=$1
@@ -64,7 +63,7 @@ git rebase -i "$REBASE_RANGE"
 REBASE_STATUS=$?
 
 # Check the exit status of the git rebase command
-if [[ $REBASE_STATUS -ne 0 ]]; then
+if [[] $REBASE_STATUS -ne 0 ]]; then
   echo ""
   echo "---------------------------------------------------------"
   echo "Git rebase failed. This often means there were conflicts."
@@ -84,7 +83,7 @@ else
   CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
   # Get upstream remote and branch if it exists, otherwise default to 'origin' and current branch
   UPSTREAM_INFO=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
-  if [[ -n "$UPSTREAM_INFO" ]]; then
+  if [ -n "$UPSTREAM_INFO" ]; then
     UPSTREAM_REMOTE="${UPSTREAM_INFO%%/*}"
     UPSTREAM_BRANCH="${UPSTREAM_INFO#*/}"
   else
