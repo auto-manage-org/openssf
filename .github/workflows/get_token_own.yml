@@ -109,7 +109,7 @@ jobs:
           fi
         done < ../filenames.txt
         echo "${{ env.CHANGE_FOUND }}"
-        cat filenames.txt
+        cat ../filenames.txt
         if [[ -f updated_filenames.txt ]]; then
           # If the file exists, print its contents
           cat updated_filenames.txt
