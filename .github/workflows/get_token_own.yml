@@ -86,15 +86,15 @@ jobs:
           # Only the rule.description, var.description, and var.opentions updates
           # will trigger the sync.
           elif [[ "$line" == *"rule.yml" ]]; then
-            sh get_rule_var_content.sh "$line"
-            DESCRIPTION_VALUE1=$(python parse.py "file1.yml")
-            DESCRIPTION_VALUE2=$(python parse.py "file2.yml")
-            if [ DESCRIPTION_VALUE1 == DESCRIPTION_VALUE2 ]; then
-              echo "rule.description hasn't been updated"
-            else
-              echo "rule.description hasn been updated!"
+            python compare_pr_yaml.py \
+            --owner auto-manage-org \
+            --repo openssf \
+            ${{ env.PR_NUMBER }} \
+            "$line" \
+            description >> $GITHUB_ENV
+            if [ ${{ env.rule_updated }} == true ]; then
               echo "$line" >> updated_filenames.txt
-              echo "CHANGE_FOUND=true" >> $GITHUB_ENV
+              echo "CHANGE_FOUND=true" >> $GITHUB_OUTPUT
             fi
           fi
         done < ../filenames.txt
