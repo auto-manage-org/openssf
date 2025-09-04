@@ -76,34 +76,15 @@ jobs:
         response=$(gh api "$url" --paginate)
         echo "$response" | jq -r '.[].filename' > filenames.txt
         echo "CHANGE_FOUND=false" >> $GITHUB_ENV
-        if grep -E "controls/|.profile|rule.yml|.var" filenames.txt ; then
-          echo "CHANGE_FOUND=true" >> $GITHUB_ENV
-        fi
-        cat filenames.txt
-        echo ${{ env.CHANGE_FOUND }}
-      env:
-        GH_TOKEN: ${{ steps.app-token.outputs.token }}
-    # Step 6: Setup the trestle bot environment
-    - name: Checkout OSCAL content repo
-      if: ${{ env.CHANGE_FOUND == 'ture' }}
-      run: |
-        echo "sucessful....."
-    # Step 7: Check the details of the updated rule and var files
-    - name: Check the deetails of the rule and var files changed by PR
-      if: ${{ env.SKIP == 'false' }}
-      run: |
-        pwd
-        ls
         cd cac-content
-        pwd
-        ls
-        echo "Into while..."
         while IFS= read -r line; do
           echo "$line"
           if echo "$line" | grep -qE "controls/|\.profile"; then
             echo "$line" >> updated_filenames.txt
             echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             echo "The change_found for finding controls and profiles: ${{ env.CHANGE_FOUND}}"
+          # Only the rule.description, var.description, and var.opentions updates
+          # will trigger the sync.
           elif [[ "$line" == *"rule.yml" ]]; then
             sh get_rule_var_content.sh "$line"
             DESCRIPTION_VALUE1=$(python parse.py "file1.yml")
@@ -117,10 +98,12 @@ jobs:
             fi
           fi
         done < ../filenames.txt
-        echo "${{ env.CHANGE_FOUND }}"
+        echo "The CHANGE_FOUND value: ${{ env.CHANGE_FOUND }}"
+        echo "The filenames.txt:"
         cat ../filenames.txt
         if [[ -f updated_filenames.txt ]]; then
           # If the file exists, print its contents
+          echo "updated_filenames:"
           cat updated_filenames.txt
         else
           # If the file doesn't exist, print a message or handle accordingly
@@ -128,3 +111,9 @@ jobs:
         fi
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
+    # Step 6: Setup the trestle bot environment
+    - name: Checkout OSCAL content repo
+      if: ${{ env.CHANGE_FOUND == 'true' }}
+      run: |
+        echo "sucessful....."
+    
