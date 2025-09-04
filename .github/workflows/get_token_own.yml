@@ -92,7 +92,7 @@ jobs:
             ${{ env.PR_NUMBER }} \
             "$line" \
             description > output.log
-            if grep -q "rule_updated=true" output.log;; then
+            if grep -q "rule_updated=true" output.log; then
               echo "$line" >> updated_filenames.txt
               echo "CHANGE_FOUND=true" >> $GITHUB_OUTPUT
             fi
