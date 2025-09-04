@@ -88,29 +88,26 @@ jobs:
     - name: Check the deetails of the rule and var files changed by PR
       if: ${{ env.SKIP == 'false' }}
       run: |
-        repo=${{ github.repository }}
-        # Fetch all pages of the files for the pull request
-        url="repos/$repo/pulls/${{ env.PR_NUMBER }}/files"
-        response=$(gh api "$url" --paginate)
-        echo "$response" | jq -r '.[].filename' > filenames.txt
-        echo "CHANGE_FOUND=false" >> $GITHUB_ENV
-        #PR_BRANCH=$(gh pr list --state open --json headRefName --jq '.[] | select(.headRefName | contains("check")) | .headRefName' | head -n 1)
+        cd cac-content
         while IFS= read -r line; do
+          echo "$file"
           if echo "$file" | grep -qE "controls/|\.profile"; then
             echo "$file" >> updated_filenames.txt
             echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             echo "The change_found for finding controls and profiles: ${{ env.CHANGE_FOUND}}"
           elif [[ "$file" == *"rule.yml" ]]; then
-            # Fetch the diff for the rule.yml file (or you can use a similar method you used to get diffs previously)
-            if check_rule_var_updates.sh "$file" "${{ github.base_ref }}" "${{ github.head_ref }}" "description"; then
+            sh get_rule_var_content.sh "$file"
+            DESCRIPTION_VALUE1=$(python parse.py "file1.yml")
+            DESCRIPTION_VALUE2=$(python parse.py "file2.yml")
+            if [ DESCRIPTION_VALUE1 == DESCRIPTION_VALUE2 ]; then
+              echo "rule.description hasn't been updated"
+            else
+              echo "rule.description hasn been updated!"
               echo "$file" >> updated_filenames.txt
               echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             fi
-          elif [[ "$file" == *".var" ]] && [[ check_rule_var_updates.sh "$file" "${{ github.base_ref }}" "${{ github.head_ref }}" "description" ]]; then
-            echo "$file" >> updated_filenames.txt
-            echo "CHANGE_FOUND=true" >> $GITHUB_ENV
-            # Check if the file name ends with ".var" and contains "description" or "options" changes
-        done < filenames.txt
+          fi
+        done < ../filenames.txt
         echo "${{ env.CHANGE_FOUND }}"
         cat filenames.txt
         if [[ -f updated_filenames.txt ]]; then
