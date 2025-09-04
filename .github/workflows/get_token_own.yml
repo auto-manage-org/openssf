@@ -96,20 +96,20 @@ jobs:
         ls
         echo "Into while..."
         while IFS= read -r line; do
-          echo "$file"
-          if echo "$file" | grep -qE "controls/|\.profile"; then
-            echo "$file" >> updated_filenames.txt
+          echo "$line"
+          if echo "$line" | grep -qE "controls/|\.profile"; then
+            echo "$line" >> updated_filenames.txt
             echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             echo "The change_found for finding controls and profiles: ${{ env.CHANGE_FOUND}}"
-          elif [[ "$file" == *"rule.yml" ]]; then
-            sh get_rule_var_content.sh "$file"
+          elif [[ "$line" == *"rule.yml" ]]; then
+            sh get_rule_var_content.sh "$line"
             DESCRIPTION_VALUE1=$(python parse.py "file1.yml")
             DESCRIPTION_VALUE2=$(python parse.py "file2.yml")
             if [ DESCRIPTION_VALUE1 == DESCRIPTION_VALUE2 ]; then
               echo "rule.description hasn't been updated"
             else
               echo "rule.description hasn been updated!"
-              echo "$file" >> updated_filenames.txt
+              echo "$line" >> updated_filenames.txt
               echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             fi
           fi
