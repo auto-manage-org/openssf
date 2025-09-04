@@ -86,7 +86,7 @@ jobs:
           # Only the rule.description, var.description, and var.opentions updates
           # will trigger the sync.
           elif [[ "$line" == *"rule.yml" ]]; then
-            python compare_pr_yaml.py \
+            python compare_pr.py \
             --owner auto-manage-org \
             --repo openssf \
             ${{ env.PR_NUMBER }} \
