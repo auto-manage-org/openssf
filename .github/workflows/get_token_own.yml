@@ -77,6 +77,7 @@ jobs:
           echo "CHANGE_FOUND=true" >> $GITHUB_ENV
         fi
         cat filenames.txt
+        echo ${{ env.CHANGE_FOUND }}
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
     # Step 6: Setup the trestle bot environment
@@ -88,7 +89,12 @@ jobs:
     - name: Check the deetails of the rule and var files changed by PR
       if: ${{ env.SKIP == 'false' }}
       run: |
+        pwd
+        ls
         cd cac-content
+        pwd
+        ls
+        echo "Into while..."
         while IFS= read -r line; do
           echo "$file"
           if echo "$file" | grep -qE "controls/|\.profile"; then
