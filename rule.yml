@@ -3,7 +3,7 @@ documentation_complete: true
 
 title: 'Disallow magic SysRq key'
 
-description: '{{{ test test describe_sysctl_option_value(sysctl="kernel.sysrq", value="0") }}}'
+description: '{{{ check10 describe_sysctl_option_value(sysctl="kernel.sysrq", value="0") }}}'
 
 rationale: |-
     The test Magic SysRq key allows sending certain commands directly to the running
