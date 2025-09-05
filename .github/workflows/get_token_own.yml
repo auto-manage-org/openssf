@@ -81,6 +81,7 @@ jobs:
         while IFS= read -r line; do
           echo "into while ........."
           if echo "$line" | grep -qE "controls/|\.profile"; then
+            echo "info control profile..."
             echo "$line" >> updated_filenames.txt
             echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             echo "The change_found for finding controls and profiles: ${{ env.CHANGE_FOUND}}"
@@ -89,10 +90,10 @@ jobs:
           elif [[ "$line" == *"rule.yml" || "$line" == *".var" ]]; then
             echo "into rule/var..."
             python compare_rule_var.py --owner $OWNER --repo $REPO \
-              ${{ env.PR_NUMBER }} $line description options > output.log || true
+              ${{ env.PR_NUMBER }} $line description options > output.log
             # If any exceptions occur during the comparison process, to ensure
             # no syncs are missed, add it to updated files.
-            if grep -E "CHANGE_FOUND|Exception" output.log; then
+            if grep -E "CHANGE_FOUND=true" output.log; then
               cat output.log
               echo "The description in $line has been updated."
               echo "$line" >> updated_filenames.txt
