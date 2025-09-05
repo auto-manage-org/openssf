@@ -101,7 +101,7 @@ def main():
 
     if returncode != 0:
         print(f"\nException: Failed to get PR details. gh stderr: {stderr.strip()}", file=sys.stderr)
-
+        sys.exit(0)
     try:
         shas = json.loads(stdout)
         base_sha = shas['baseRefOid']
@@ -110,6 +110,7 @@ def main():
         print(f"Head SHA (After):  {head_sha}\n")
     except (json.JSONDecodeError, KeyError) as e:
         print(f"\nException: Could not parse commit SHAs. Error: {e}", file=sys.stderr)
+        sys.exit(0)
 
     # 2. Fetch file content for both commits.
     before_content = get_file_content_from_pr(args.owner, args.repo, base_sha, args.file_path)
@@ -126,9 +127,11 @@ def main():
 
     if before_value == after_value:
         print("\nNo changes detected for the specified keys.")
+        sys.exit(0)
     else:
         print("\nChange detected for one of the specified keys!")
         print("\nCHANGE_FOUND=true")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
