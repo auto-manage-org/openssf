@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import sys
 import subprocess
 import json
@@ -9,18 +10,21 @@ from typing import Optional
 
 def run_command(command: list[str]) -> tuple[int, str, str]:
     """Runs a shell command and returns its exit code, stdout, and stderr."""
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    return result.returncode, result.stdout, result.stderr
+    res = subprocess.run(command, capture_output=True, text=True, check=False)
+    return res.returncode, res.stdout, res.stderr
 
 def get_file_content_from_pr(owner: str, repo: str, sha: str, file_path: str) -> str:
-    """Fetches file content for a given commit SHA using the GitHub API."""
+    """Fetches file content for a given commit SHA using the GitHub API.
+    The base64 encoding and decoding step is necessary because of how the
+    GitHub API is designed to transmit file content.
+    """
     api_path = f"/repos/{owner}/{repo}/contents/{file_path}?ref={sha}"
     print(f"-> Fetching file content for '{file_path}' from commit {sha[:7]}...")
     
     returncode, stdout, stderr = run_command(["gh", "api", api_path])
     
     if returncode != 0:
-        print(f"   - Warning: Could not fetch file. It may be new or deleted. (stderr: {stderr.strip()})")
+        print(f"Exception: Could not fetch file. It may be new or deleted. (stderr: {stderr.strip()})")
         return ""
         
     try:
@@ -31,17 +35,19 @@ def get_file_content_from_pr(owner: str, repo: str, sha: str, file_path: str) ->
         
         return base64.b64decode(encoded_content).decode('utf-8')
     except (json.JSONDecodeError, KeyError, TypeError) as e:
-        print(f"   - Warning: Could not parse or decode content. Error: {e}", file=sys.stderr)
+        print(f"Warning: Could not parse or decode content. Error: {e}", file=sys.stderr)
         return ""
 
 def parse_yaml_and_get_keys(content: str, keys_to_find: list[str]) -> Optional[str]:
     """
-    Parses a YAML content string, cleans it, and finds the value of the first
-    matching key from the provided list.
+    Parses a YAML content string, cleans it, and finds the values of ALL
+    matching keys from the provided list. Returns a canonical YAML string
+    of the found keys and their values for comparison.
     """
     yaml = YAML(typ='safe')
     
-    # Pre-process content to remove invalid lines (e.g., '{{{...}}}')
+    # The rule.yml has '{{{...}}}' that can't be parsed by YMAL.
+    # Pre-process content to remove invalid lines.
     lines = content.splitlines()
     clean_lines = [line for line in lines if not line.strip().startswith('{{{')]
     cleaned_content = "\n".join(clean_lines)
@@ -54,32 +60,29 @@ def parse_yaml_and_get_keys(content: str, keys_to_find: list[str]) -> Optional[s
         if not isinstance(data, dict):
             return None
     except Exception as e:
-        print(f"   - Warning: Could not parse YAML content. Error: {e}", file=sys.stderr)
+        print(f"Exception: Could not parse YAML content. Error: {e}", file=sys.stderr)
         return None
 
-    found_value = None
+    # Create a dictionary of all found keys and their values
+    found_data = {}
     for key in keys_to_find:
         if key in data:
-            found_value = data.get(key)
-            break
+            found_data[key] = data.get(key)
     
-    if found_value is None:
+    if not found_data:
         return None
 
-    # For consistent comparison, convert complex types (lists/dicts) back to a YAML string
-    if isinstance(found_value, (dict, list)):
-        string_stream = io.StringIO()
-        yaml.dump(found_value, string_stream)
-        return string_stream.getvalue().strip()
-    
-    return str(found_value)
+    # For consistent comparison, convert the found data dict back to a YAML string
+    string_stream = io.StringIO()
+    yaml.dump(found_data, string_stream)
+    return string_stream.getvalue().strip()
 
 def main():
     """Main function to fetch PR files, parse them, and compare keys."""
     parser = argparse.ArgumentParser(
         description="Compare specific keys in a YAML file between a PR's base and head branches."
     )
-    parser.add_argument("--owner", required=True, help="The owner of the repository (organization or user).")
+    parser.add_argument("--owner", required=True, help="The owner of the repository.")
     parser.add_argument("--repo", required=True, help="The name of the repository.")
     parser.add_argument("pr_number", type=int, help="The Pull Request number.")
     parser.add_argument("file_path", type=str, help="The full path to the file within the repository.")
@@ -97,7 +100,7 @@ def main():
     returncode, stdout, stderr = run_command(gh_pr_command)
 
     if returncode != 0:
-        print(f"\nError: Failed to get PR details. gh stderr: {stderr.strip()}", file=sys.stderr)
+        print(f"\nException: Failed to get PR details. gh stderr: {stderr.strip()}", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -107,7 +110,7 @@ def main():
         print(f"Base SHA (Before): {base_sha}")
         print(f"Head SHA (After):  {head_sha}\n")
     except (json.JSONDecodeError, KeyError) as e:
-        print(f"\nError: Could not parse commit SHAs. Error: {e}", file=sys.stderr)
+        print(f"\nException: Could not parse commit SHAs. Error: {e}", file=sys.stderr)
         sys.exit(1)
 
     # 2. Fetch file content for both commits.
@@ -120,16 +123,18 @@ def main():
 
     # 4. Compare the results and print the final output.
     print("\n--- Comparison Result ---")
-    print(f"Value in base branch:  {before_value}")
-    print(f"Value in PR branch:    {after_value}")
+    print(f"Value(s) in base branch:\n---\n{before_value}\n---")
+    print(f"Value(s) in PR branch:\n---\n{after_value}\n---")
 
     if before_value == after_value:
-        print("\n✅ No changes detected for the specified keys.")
-        print("\nrule_updated=false")
+        print("\nNo changes detected for the specified keys.")
+        sys.exit(0)
     else:
-        print("\n❗️ Change detected for one of the specified keys!")
-        # This output can be redirected to GITHUB_ENV in a GitHub Action
-        print("\nrule_var_updated=true")
+        print("\nChange detected for one of the specified keys!")
+        print("\nCHANGE_FOUND=true")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
+
+
