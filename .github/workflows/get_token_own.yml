@@ -79,6 +79,7 @@ jobs:
         echo "CHANGE_FOUND=false" >> $GITHUB_ENV
         cd cac-content
         while IFS= read -r line; do
+          echo "into while ........."
           if echo "$line" | grep -qE "controls/|\.profile"; then
             echo "$line" >> updated_filenames.txt
             echo "CHANGE_FOUND=true" >> $GITHUB_ENV
@@ -86,6 +87,7 @@ jobs:
           # Only the rule.description, var.description, and var.opentions updates
           # will trigger the sync.
           elif [[ "$line" == *"rule.yml" || "$line" == *".var" ]]; then
+            echo "into rule/var..."
             python compare_rule_var.py --owner $OWNER --repo $REPO \
               ${{ env.PR_NUMBER }} $line description options > output.log
             # If any exceptions occur during the comparison process, to ensure
