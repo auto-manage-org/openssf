@@ -80,7 +80,6 @@ jobs:
         echo "$response" | jq -r '.[].filename' > filenames.txt
         echo "CHANGE_FOUND=false" >> $GITHUB_ENV
         cd cac-content
-        CLI="python compare_pr.py --owner auto-manage-org --repo openssf ${{ env.PR_NUMBER }} $line"
         while IFS= read -r line; do
           echo "$line"
           if echo "$line" | grep -qE "controls/|\.profile"; then
@@ -90,7 +89,8 @@ jobs:
           # Only the rule.description, var.description, and var.opentions updates
           # will trigger the sync.
           elif [[ "$line" == *"rule.yml" ]]; then
-            $CLI description > output.log
+            python compare_pr.py --owner $OWNER --repo $REPO \
+              ${{ env.PR_NUMBER }} $line description > output.log
             if grep -q "rule_var_updated=true" output.log; then
               cat output.log
               echo "The description in $line has been updated."
@@ -98,8 +98,10 @@ jobs:
               echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             fi
           elif [[ "$line" == *".var" ]]; then
-            $CLI description > output.log
-            $CLI options >> output.log
+            python compare_pr.py --owner $OWNER --repo $REPO \
+              ${{ env.PR_NUMBER }} $line description > output.log
+            python compare_pr.py --owner $OWNER --repo $REPO \
+              ${{ env.PR_NUMBER }} $line options >> output.log
             if grep -q "rule_var_updated=true" output.log; then
               cat output.log
               echo "The description or options in $line has/have been updated."
