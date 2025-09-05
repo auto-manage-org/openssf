@@ -24,7 +24,7 @@ def get_file_content_from_pr(owner: str, repo: str, sha: str, file_path: str) ->
     returncode, stdout, stderr = run_command(["gh", "api", api_path])
     
     if returncode != 0:
-        print(f"Warning: Could not fetch file. It may be new or deleted. (stderr: {stderr.strip()})")
+        print(f"Exception: Could not fetch file. It may be new or deleted. (stderr: {stderr.strip()})")
         return ""
         
     try:
@@ -35,7 +35,7 @@ def get_file_content_from_pr(owner: str, repo: str, sha: str, file_path: str) ->
         
         return base64.b64decode(encoded_content).decode('utf-8')
     except (json.JSONDecodeError, KeyError, TypeError) as e:
-        print(f"Warning: Could not parse or decode content. Error: {e}", file=sys.stderr)
+        print(f"Exception: Could not parse or decode content. Error: {e}", file=sys.stderr)
         return ""
 
 def parse_yaml_and_get_keys(content: str, keys_to_find: list[str]) -> Optional[str]:
@@ -60,7 +60,7 @@ def parse_yaml_and_get_keys(content: str, keys_to_find: list[str]) -> Optional[s
         if not isinstance(data, dict):
             return None
     except Exception as e:
-        print(f"Warning: Could not parse YAML content. Error: {e}", file=sys.stderr)
+        print(f"Exception: Could not parse YAML content. Error: {e}", file=sys.stderr)
         return None
 
     # Create a dictionary of all found keys and their values
@@ -100,7 +100,7 @@ def main():
     returncode, stdout, stderr = run_command(gh_pr_command)
 
     if returncode != 0:
-        print(f"\nError: Failed to get PR details. gh stderr: {stderr.strip()}", file=sys.stderr)
+        print(f"\nException: Failed to get PR details. gh stderr: {stderr.strip()}", file=sys.stderr)
 
     try:
         shas = json.loads(stdout)
@@ -109,7 +109,7 @@ def main():
         print(f"Base SHA (Before): {base_sha}")
         print(f"Head SHA (After):  {head_sha}\n")
     except (json.JSONDecodeError, KeyError) as e:
-        print(f"\nError: Could not parse commit SHAs. Error: {e}", file=sys.stderr)
+        print(f"\nException: Could not parse commit SHAs. Error: {e}", file=sys.stderr)
 
     # 2. Fetch file content for both commits.
     before_content = get_file_content_from_pr(args.owner, args.repo, base_sha, args.file_path)
@@ -126,11 +126,9 @@ def main():
 
     if before_value == after_value:
         print("\nNo changes detected for the specified keys.")
-        sys.exit(0)
     else:
         print("\nChange detected for one of the specified keys!")
         print("\nCHANGE_FOUND=true")
-        sys.exit(1)
 
 if __name__ == "__main__":
     main()
