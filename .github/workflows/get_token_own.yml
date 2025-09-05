@@ -89,16 +89,19 @@ jobs:
           # will trigger the sync.
           elif [[ "$line" == *"rule.yml" || "$line" == *".var" ]]; then
             echo "into rule/var..."
-            python compare_rule_var.py --owner $OWNER --repo $REPO \
-              ${{ env.PR_NUMBER }} $line description options > output.log
-            # If any exceptions occur during the comparison process, to ensure
-            # no syncs are missed, add it to updated files.
-            if grep -q "CHANGE_FOUND=true||Exception" output.log; then
-              cat output.log
-              echo "The description in $line has been updated."
-              echo "$line" >> updated_filenames.txt
-              echo "CHANGE_FOUND=true" >> $GITHUB_ENV
-            fi
+            python  compare_rule_var.py\
+            --owner $OWNER \
+            --repo $REPO \
+            ${{ env.PR_NUMBER }} \
+            "$line" \
+            description options \
+          || {
+            echo "Change detected! Running follow-up actions..."
+            echo "The description/options in the file have been updated."
+            echo "$line" >> updated_filenames.txt
+            echo "CHANGE_FOUND=true" >> $GITHUB_ENV
+            #exit 1 # Re-fail the step to ensure the job status is marked as failed
+          }
           fi
         done < ../filenames.txt
         echo "The CHANGE_FOUND value: ${{ env.CHANGE_FOUND }}"
