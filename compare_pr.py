@@ -129,7 +129,7 @@ def main():
     else:
         print("\n❗️ Change detected for one of the specified keys!")
         # This output can be redirected to GITHUB_ENV in a GitHub Action
-        print("\nrule_updated=true")
+        print("\nrule_var_updated=true")
 
 if __name__ == "__main__":
     main()
