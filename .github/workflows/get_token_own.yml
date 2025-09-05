@@ -100,7 +100,6 @@ jobs:
             echo "The description/options in the file have been updated."
             echo "$line" >> updated_filenames.txt
             echo "CHANGE_FOUND=true" >> $GITHUB_ENV
-            #exit 1 # Re-fail the step to ensure the job status is marked as failed
           }
           fi
         done < ../filenames.txt
