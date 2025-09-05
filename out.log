@@ -1,0 +1,20 @@
+--- Analyzing 'test.var' in PR #81 for keys: ['description'] ---
+Repository: auto-manage-org/openssf
+Base SHA (Before): ecef87881faae95e3fceff48a1eb5037d5cdcae3
+Head SHA (After):  53dad3671f2cdaae348ff3fb710f455b3b032f55
+
+-> Fetching file content for 'test.var' from commit ecef878...
+Exception: Could not fetch file. It may be new or deleted. (stderr: gh: Not Found (HTTP 404))
+-> Fetching file content for 'test.var' from commit 53dad36...
+
+--- Comparison Result ---
+Value(s) in base branch:
+---
+None
+---
+Value(s) in PR branch:
+---
+None
+---
+
+No changes detected for the specified keys.
