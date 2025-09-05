@@ -8,10 +8,12 @@ import io
 from ruamel.yaml import YAML
 from typing import Optional
 
+
 def run_command(command: list[str]) -> tuple[int, str, str]:
     """Runs a shell command and returns its exit code, stdout, and stderr."""
     res = subprocess.run(command, capture_output=True, text=True, check=False)
     return res.returncode, res.stdout, res.stderr
+
 
 def get_file_content_from_pr(owner: str, repo: str, sha: str, file_path: str) -> str:
     """Fetches file content for a given commit SHA using the GitHub API.
@@ -20,23 +22,24 @@ def get_file_content_from_pr(owner: str, repo: str, sha: str, file_path: str) ->
     """
     api_path = f"/repos/{owner}/{repo}/contents/{file_path}?ref={sha}"
     print(f"-> Fetching file content for '{file_path}' from commit {sha[:7]}...")
-    
     returncode, stdout, stderr = run_command(["gh", "api", api_path])
-    
+
     if returncode != 0:
-        print(f"Exception: Could not fetch file. It may be new or deleted. (stderr: {stderr.strip()})")
+        print(f"Exception: Could not fetch file. It may be new or deleted. "
+              f"(stderr: {stderr.strip()})")
         return ""
-        
+
     try:
         content_json = json.loads(stdout)
         encoded_content = content_json.get('content', '')
         if not encoded_content:
             return ""
-        
+
         return base64.b64decode(encoded_content).decode('utf-8')
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         print(f"Exception: Could not parse or decode content. Error: {e}", file=sys.stderr)
         return ""
+
 
 def parse_yaml_and_get_keys(content: str, keys_to_find: list[str]) -> Optional[str]:
     """
@@ -45,16 +48,15 @@ def parse_yaml_and_get_keys(content: str, keys_to_find: list[str]) -> Optional[s
     of the found keys and their values for comparison.
     """
     yaml = YAML(typ='safe')
-    
     # The rule.yml has '{{{...}}}' that can't be parsed by YMAL.
     # Pre-process content to remove invalid lines.
     lines = content.splitlines()
     clean_lines = [line for line in lines if not line.strip().startswith('{{{')]
     cleaned_content = "\n".join(clean_lines)
-    
+
     if not cleaned_content.strip():
         return None
-            
+
     try:
         data = yaml.load(cleaned_content)
         if not isinstance(data, dict):
@@ -68,7 +70,7 @@ def parse_yaml_and_get_keys(content: str, keys_to_find: list[str]) -> Optional[s
     for key in keys_to_find:
         if key in data:
             found_data[key] = data.get(key)
-    
+
     if not found_data:
         return None
 
@@ -76,6 +78,7 @@ def parse_yaml_and_get_keys(content: str, keys_to_find: list[str]) -> Optional[s
     string_stream = io.StringIO()
     yaml.dump(found_data, string_stream)
     return string_stream.getvalue().strip()
+
 
 def main():
     """Main function to fetch PR files, parse them, and compare keys."""
@@ -85,22 +88,34 @@ def main():
     parser.add_argument("--owner", required=True, help="The owner of the repository.")
     parser.add_argument("--repo", required=True, help="The name of the repository.")
     parser.add_argument("pr_number", type=int, help="The Pull Request number.")
-    parser.add_argument("file_path", type=str, help="The full path to the file within the repository.")
-    parser.add_argument("keys", nargs='+', help="One or more keys to check in order (e.g., description options).")
+    parser.add_argument("file_path", type=str, help="The file path within the repository.")
+    parser.add_argument(
+        "keys",
+        nargs='+',
+        help="One or more keys to check in order "
+             "(e.g., description options)."
+    )
+
     args = parser.parse_args()
 
     print(f"--- Analyzing '{args.file_path}' in PR #{args.pr_number} for keys: {args.keys} ---")
     print(f"Repository: {args.owner}/{args.repo}")
 
-
     # 1. Get the base and head commit SHAs.
     gh_pr_command = [
-        "gh", "pr", "view", str(args.pr_number), "--repo", f"{args.owner}/{args.repo}", "--json", "baseRefOid,headRefOid"
+        "gh", "pr", "view", str(args.pr_number),
+        "--repo", f"{args.owner}/{args.repo}",
+        "--json", "baseRefOid,headRefOid"
     ]
     returncode, stdout, stderr = run_command(gh_pr_command)
 
     if returncode != 0:
-        print(f"\nException: Failed to get PR details. gh stderr: {stderr.strip()}", file=sys.stderr)
+        print(
+            f"\nException: Failed to get PR details. "
+            f"gh stderr: {stderr.strip()}",
+            file=sys.stderr
+        )
+
         sys.exit(0)
     try:
         shas = json.loads(stdout)
@@ -109,12 +124,21 @@ def main():
         print(f"Base SHA (Before): {base_sha}")
         print(f"Head SHA (After):  {head_sha}\n")
     except (json.JSONDecodeError, KeyError) as e:
-        print(f"\nException: Could not parse commit SHAs. Error: {e}", file=sys.stderr)
+        print(
+            f"\nException: Could not parse commit SHAs. "
+            f"Error: {e}",
+            file=sys.stderr
+        )
+
         sys.exit(0)
 
     # 2. Fetch file content for both commits.
-    before_content = get_file_content_from_pr(args.owner, args.repo, base_sha, args.file_path)
-    after_content = get_file_content_from_pr(args.owner, args.repo, head_sha, args.file_path)
+    before_content = get_file_content_from_pr(
+        args.owner, args.repo, base_sha, args.file_path
+    )
+    after_content = get_file_content_from_pr(
+        args.owner, args.repo, head_sha, args.file_path
+    )
 
     # 3. Parse the content in memory to get the desired values.
     before_value = parse_yaml_and_get_keys(before_content, args.keys)
@@ -133,7 +157,6 @@ def main():
         print("\nCHANGE_FOUND=true")
         sys.exit(1)
 
+
 if __name__ == "__main__":
     main()
-
-
