@@ -11,7 +11,7 @@ type: number
 
 operator: equals
 
-interactive: true
+interactive: false
 
 options:
     default: 36
