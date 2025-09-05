@@ -90,16 +90,18 @@ jobs:
           # Only the rule.description, var.description, and var.opentions updates
           # will trigger the sync.
           elif [[ "$line" == *"rule.yml" ]]; then
-            CLI description > output.log
+            $CLI description > output.log
             if grep -q "rule_var_updated=true" output.log; then
+              cat output.log
               echo "The description in $line has been updated."
               echo "$line" >> updated_filenames.txt
               echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             fi
           elif [[ "$line" == *".var" ]]; then
-            CLI description > output.log
-            CLI options >> output.log
+            $CLI description > output.log
+            $CLI options >> output.log
             if grep -q "rule_var_updated=true" output.log; then
+              cat output.log
               echo "The description or options in $line has/have been updated."
               echo "$line" >> updated_filenames.txt
               echo "CHANGE_FOUND=true" >> $GITHUB_ENV
