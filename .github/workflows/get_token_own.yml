@@ -71,12 +71,16 @@ jobs:
       id: changed-files
       run: |
         repo=${{ github.repository }}
+        OWNER="auto-manage-org"
+        REPO="openssf"
         # Fetch all pages of the files for the pull request
-        url="repos/$repo/pulls/${{ env.PR_NUMBER }}/files"
+        # url="repos/$repo/pulls/${{ env.PR_NUMBER }}/files"
+        url="repos/$OWNER/$REPO/pulls/${{ env.PR_NUMBER }}/files"
         response=$(gh api "$url" --paginate)
         echo "$response" | jq -r '.[].filename' > filenames.txt
         echo "CHANGE_FOUND=false" >> $GITHUB_ENV
         cd cac-content
+        CLI = "python compare_pr.py --owner auto-manage-org --repo openssf ${{ env.PR_NUMBER }} $line
         while IFS= read -r line; do
           echo "$line"
           if echo "$line" | grep -qE "controls/|\.profile"; then
@@ -86,17 +90,22 @@ jobs:
           # Only the rule.description, var.description, and var.opentions updates
           # will trigger the sync.
           elif [[ "$line" == *"rule.yml" ]]; then
-            python compare_pr.py \
-            --owner auto-manage-org \
-            --repo openssf \
-            ${{ env.PR_NUMBER }} \
-            "$line" \
-            description > output.log
-            if grep -q "rule_updated=true" output.log; then
+            CLI description > output.log
+            if grep -q "rule_var_updated=true" output.log; then
+              echo "The description in $line has been updated."
+              echo "$line" >> updated_filenames.txt
+              echo "CHANGE_FOUND=true" >> $GITHUB_ENV
+            fi
+          elif [[ "$line" == *".var" ]]; then
+            CLI description > output.log
+            CLI options >> output.log
+            if grep -q "rule_var_updated=true" output.log; then
+              echo "The description or options in $line has/have been updated."
               echo "$line" >> updated_filenames.txt
               echo "CHANGE_FOUND=true" >> $GITHUB_ENV
             fi
           fi
+
         done < ../filenames.txt
         echo "The CHANGE_FOUND value: ${{ env.CHANGE_FOUND }}"
         echo "The filenames.txt:"
