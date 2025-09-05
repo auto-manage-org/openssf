@@ -11,10 +11,10 @@ type: number
 
 operator: equals
 
-interactive: false
+interactive: true
 
 options:
-    default: 30
+    default: 32
     1: 1
     2: 2
     3: 3

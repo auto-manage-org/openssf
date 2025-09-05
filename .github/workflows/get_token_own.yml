@@ -93,7 +93,7 @@ jobs:
               ${{ env.PR_NUMBER }} $line description options > output.log
             # If any exceptions occur during the comparison process, to ensure
             # no syncs are missed, add it to updated files.
-            if grep -E "CHANGE_FOUND=true" output.log; then
+            if grep -q "CHANGE_FOUND=true" output.log; then
               cat output.log
               echo "The description in $line has been updated."
               echo "$line" >> updated_filenames.txt
