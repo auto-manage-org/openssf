@@ -4,8 +4,6 @@ import subprocess
 import json
 import base64
 import argparse
-import io
-from ruamel.yaml import YAML
 from typing import Optional, Tuple
 from collections import namedtuple
 
