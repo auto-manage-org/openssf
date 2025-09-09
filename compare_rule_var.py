@@ -6,7 +6,7 @@ import base64
 import argparse
 import io
 from ruamel.yaml import YAML
-from typing import Optional
+from typing import Optional, Tuple
 from collections import namedtuple
 
 
@@ -113,6 +113,52 @@ def get_section_from_content(content: str, section: str) -> Optional[str]:
 
     return None
 
+def get_pr_shas(owner: str, repo: str, pr_number: int) -> Tuple[str, str]:
+    """
+    Fetches the base and head commit SHAs for a PR.
+    """
+    gh_pr_command = [
+        "gh", "pr", "view", str(pr_number),
+        "--repo", f"{owner}/{repo}",
+        "--json", "baseRefOid,headRefOid"
+    ]
+    returncode, stdout, stderr = run_command(gh_pr_command)
+
+    if returncode != 0:
+        raise RuntimeError(f"Failed to get PR details. GitHub CLI stderr: {stderr.strip()}")
+
+    try:
+        shas = json.loads(stdout)
+        base_sha = shas['baseRefOid']
+        head_sha = shas['headRefOid']
+        return base_sha, head_sha
+    except (json.JSONDecodeError, KeyError) as e:
+        raise ValueError(f"Could not parse commit SHAs from API response. Error: {e}") from e
+
+def get_value_from_commit(owner: str, repo: str, file_path: str, key: str, sha: str) -> Optional[str]:
+    """
+    Fetches a file from a specific commit and extracts the value of a given key.
+
+    Args:
+        owner: The repository owner.
+        repo: The repository name.
+        file_path: The path to the file within the repository.
+        key: The key/section to extract from the file's content.
+        sha: The commit SHA from which to retrieve the file.
+
+    Returns:
+        The extracted value as a string, or None if the file or key is not found.
+    """
+    # 1. Fetch the file's content for the given commit SHA.
+    content = get_file_content_from_pr(owner, repo, sha, file_path)
+
+    # 2. Parse the content to get the desired value.
+    value = get_section_from_content(content, key)
+
+    return value
+
+
+
 def main():
     """Main function to fetch PR files, parse them, and compare keys."""
     parser = argparse.ArgumentParser(
@@ -126,57 +172,21 @@ def main():
 
     args = parser.parse_args()
 
-    print(f"--- Analyzing '{args.file_path}' in PR #{args.pr_number} for keys: {args.key} ---")
+    print(f"--- Analyzing '{args.file_path}' in PR #{args.pr_number} for key: {args.key} ---")
     print(f"Repository: {args.owner}/{args.repo}")
 
     # 1. Get the base and head commit SHAs.
-    gh_pr_command = [
-        "gh", "pr", "view", str(args.pr_number),
-        "--repo", f"{args.owner}/{args.repo}",
-        "--json", "baseRefOid,headRefOid"
-    ]
-    returncode, stdout, stderr = run_command(gh_pr_command)
+    base_sha, head_sha = get_pr_shas(args.owner, args.repo, args.pr_number)
 
-    if returncode != 0:
-        print(
-            f"\nException: Failed to get PR details. "
-            f"gh stderr: {stderr.strip()}",
-            file=sys.stderr
-        )
-
-        sys.exit(0)
-    try:
-        shas = json.loads(stdout)
-        base_sha = shas['baseRefOid']
-        head_sha = shas['headRefOid']
-        print(f"Base SHA (Before): {base_sha}")
-        print(f"Head SHA (After):  {head_sha}\n")
-    except (json.JSONDecodeError, KeyError) as e:
-        print(
-            f"\nException: Could not parse commit SHAs. "
-            f"Error: {e}",
-            file=sys.stderr
-        )
-
-        sys.exit(0)
-
-    # 2. Fetch file content for both commits.
-    before_content = get_file_content_from_pr(
-        args.owner, args.repo, base_sha, args.file_path
+    # 2. Fetch and parse the values of the key from the base and head commits.
+    before_value = get_value_from_commit(
+    args.owner, args.repo, args.file_path, args.key, base_sha
     )
-    print(before_content)
-    after_content = get_file_content_from_pr(
-        args.owner, args.repo, head_sha, args.file_path
+    after_value = get_value_from_commit(
+    args.owner, args.repo, args.file_path, args.key, head_sha
     )
-    print(after_content)
 
-    # 3. Parse the content in memory to get the desired values.
-    before_value = get_section_from_content(before_content, args.key)
-    after_value = get_section_from_content(after_content, args.key)
-    print(before_value)
-    print(after_value)
-
-    # 4. Compare the results and print the final output.
+    # 3. Compare the results and print the final output.
     print("\n--- Comparison Result ---")
     print(f"Value(s) in base branch:\n---\n{before_value}\n---")
     print(f"Value(s) in PR branch:\n---\n{after_value}\n---")
