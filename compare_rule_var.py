@@ -96,13 +96,14 @@ def find_section_lines(file_contents, sec):
 
     return sec_ranges
 
-def get_section_value(yml_file: str, section: str) -> Optional[str]:
-    try:
-        with open(yml_file, 'r') as f:
-            lines = [line.rstrip() for line in f.readlines()]
-    except FileNotFoundError:
-        print(f"ERROR: The file '{yml_file}' was not found.", file=sys.stderr)
+def get_section_from_content(content: str, section: str) -> Optional[str]:
+    """
+    Extracts a section's value from a string containing the file content.
+    """
+    if not content:
         return None
+
+    lines = content.splitlines()
     found_ranges = find_section_lines(lines, section)
  
     if found_ranges:
@@ -170,8 +171,8 @@ def main():
     print(after_content)
 
     # 3. Parse the content in memory to get the desired values.
-    before_value = get_section_value(before_content, args.key)
-    after_value = get_section_value(after_content, args.key)
+    before_value = get_section_from_content(before_content, args.key)
+    after_value = get_section_from_content(after_content, args.key)
     print(before_value)
     print(after_value)
 
