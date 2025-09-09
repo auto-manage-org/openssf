@@ -8,6 +8,7 @@ import io
 from ruamel.yaml import YAML
 from typing import Optional
 from collections import namedtuple
+from pathlib import Path
 
 
 def run_command(command: list[str]) -> tuple[int, str, str]:
@@ -97,9 +98,10 @@ def find_section_lines(file_contents, sec):
     return sec_ranges
 
 def get_section_value(yml_file: str, keys_to_find: list[str]) -> Optional[str]:
+    path = Path(yml_file)
     sections_value = {}
     try:
-        with open(yml_file, 'r') as f:
+        with path.open('r') as f:
             lines = [line.rstrip() for line in f.readlines()]
         for section in keys_to_find:
             found_ranges = find_section_lines(lines, section)
@@ -177,9 +179,12 @@ def main():
         args.owner, args.repo, head_sha, args.file_path
     )
 
+
     # 3. Parse the content in memory to get the desired values.
     before_value = get_section_value(before_content, args.keys)
     after_value = get_section_value(after_content, args.keys)
+    print(before_value)
+    print(after_value)
 
     # 4. Compare the results and print the final output.
     print("\n--- Comparison Result ---")
