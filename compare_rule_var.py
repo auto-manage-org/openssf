@@ -96,26 +96,21 @@ def find_section_lines(file_contents, sec):
 
     return sec_ranges
 
-def get_section_value(yml_file: str, keys_to_find: list[str]) -> Optional[str]:
-    sections_value = {}
+def get_section_value(yml_file: str, section: str) -> Optional[str]:
     try:
         with open(yml_file, 'r') as f:
             lines = [line.rstrip() for line in f.readlines()]
-        for section in keys_to_find:
-            found_ranges = find_section_lines(lines, section)
-            for start, end in found_ranges:
-                print(f"\nFound a section from line {start} to {end}:")
-                # Slice the list to get the content. Add 1 to `end` because Python slicing is exclusive.
-                section_content = lines[start : end + 1]
-                value = '\n'.join(section_content)
-                sections_value[section] = value
-        string_stream = io.StringIO()
-        yaml.dump(sections_value, string_stream)
-        return string_stream.getvalue().strip()
-
     except FileNotFoundError:
         print(f"ERROR: The file '{yml_file}' was not found.", file=sys.stderr)
-        sys.exit(0)
+        return None
+    found_ranges = find_section_lines(lines, section)
+ 
+    if found_ranges:
+        start, end = found_ranges[0]
+        section_content = lines[start : end + 1]
+        return '\n'.join(section_content)
+
+    return None
 
 def main():
     """Main function to fetch PR files, parse them, and compare keys."""
@@ -126,16 +121,11 @@ def main():
     parser.add_argument("--repo", required=True, help="The name of the repository.")
     parser.add_argument("pr_number", type=int, help="The Pull Request number.")
     parser.add_argument("file_path", type=str, help="The file path within the repository.")
-    parser.add_argument(
-        "keys",
-        nargs='+',
-        help="One or more keys to check in order "
-             "(e.g., description options)."
-    )
+    parser.add_argument("key", type=str, help="The key will be checked.")
 
     args = parser.parse_args()
 
-    print(f"--- Analyzing '{args.file_path}' in PR #{args.pr_number} for keys: {args.keys} ---")
+    print(f"--- Analyzing '{args.file_path}' in PR #{args.pr_number} for keys: {args.key} ---")
     print(f"Repository: {args.owner}/{args.repo}")
 
     # 1. Get the base and head commit SHAs.
@@ -180,8 +170,8 @@ def main():
     print(after_content)
 
     # 3. Parse the content in memory to get the desired values.
-    before_value = get_section_value(before_content, args.keys)
-    after_value = get_section_value(after_content, args.keys)
+    before_value = get_section_value(before_content, args.key)
+    after_value = get_section_value(after_content, args.key)
     print(before_value)
     print(after_value)
 
