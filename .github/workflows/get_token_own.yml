@@ -78,24 +78,34 @@ jobs:
         echo "$response" | jq -r '.[].filename' > filenames.txt
         echo "CHANGE_FOUND=false" >> $GITHUB_ENV
         cd cac-content
+        has_change() {
+          local file="$1"
+          local key="$2"
+          ! python compare_rule_var.py \
+            --owner "$OWNER" \
+            --repo "$REPO" \
+            "${{ env.PR_NUMBER }}" \
+            "$file" \
+            "$key"
+        }
         while IFS= read -r line; do
-          if echo "$line" | grep -qE "controls/|\.profile"; then
-            echo "$line" >> updated_filenames.txt
-          # Only the rule.description, var.description, and var.options updates
-          # will trigger the sync.
-          elif [[ "$line" == *"rule.yml" || "$line" == *".var" ]]; then
-            python  compare_rule_var.py\
-            --owner $OWNER \
-            --repo $REPO \
-            ${{ env.PR_NUMBER }} \
-            "$line" \
-            description options \
-          || {
-            echo "Change detected! Running follow-up actions..."
-            echo "The description/options in the $line have been updated."
-            echo "$line" >> updated_filenames.txt
-          }
-          fi
+          case "$line" in
+            *controls/*|*.profile*)
+              echo "$line" >> updated_filenames.txt
+              ;;
+            *rule.yml)
+              if has_change "$line" "description"; then
+                echo "Change detected: The description in '$line' was updated."
+                echo "$line" >> updated_filenames.txt
+              fi
+              ;;
+            *.var)
+              if has_change "$line" "description" || has_change "$line" "options"; then
+                echo "Change detected: The description or options in '$line' were updated."
+                echo "$line" >> updated_filenames.txt
+              fi
+              ;;
+          esac
         done < ../filenames.txt
         if [[ -f updated_filenames.txt ]]; then
           # If the file exists, print the files
