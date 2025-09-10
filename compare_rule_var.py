@@ -4,8 +4,28 @@ import subprocess
 import json
 import base64
 import argparse
-from typing import Optional, Tuple
+from typing import Optional, Tuple, NoReturn
 from collections import namedtuple
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    Sets up and parses command-line arguments for the script.
+    
+    Returns:
+        An object containing the parsed command-line arguments.
+    """
+    parser = argparse.ArgumentParser(
+        description="Compare specific keys in a YAML file between a PR's base and head branches."
+    )
+    # Required arguments
+    parser.add_argument("--owner", required=True, help="The owner of the repository.")
+    parser.add_argument("--repo", required=True, help="The name of the repository.")
+    parser.add_argument("pr_number", type=int, help="The Pull Request number.")
+    parser.add_argument("file_path", type=str, help="The file path within the repository.")
+    parser.add_argument("key", type=str, help="The key to be checked in the file.")
+
+    return parser.parse_args()
 
 
 def run_command(command: list[str]) -> tuple[int, str, str]:
@@ -155,39 +175,24 @@ def get_value_from_commit(owner: str, repo: str, file_path: str, key: str, sha: 
 
     return value
 
-
-
-def main():
-    """Main function to fetch PR files, parse them, and compare keys."""
-    parser = argparse.ArgumentParser(
-        description="Compare specific keys in a YAML file between a PR's base and head branches."
-    )
-    parser.add_argument("--owner", required=True, help="The owner of the repository.")
-    parser.add_argument("--repo", required=True, help="The name of the repository.")
-    parser.add_argument("pr_number", type=int, help="The Pull Request number.")
-    parser.add_argument("file_path", type=str, help="The file path within the repository.")
-    parser.add_argument("key", type=str, help="The key will be checked.")
-
-    args = parser.parse_args()
-
-    print(f"--- Analyzing '{args.file_path}' in PR #{args.pr_number} for key: {args.key} ---")
-    print(f"Repository: {args.owner}/{args.repo}")
-
+def compare_value(owner: str, repo: str, pr_number: int, file_path: str, key: str) -> NoReturn:
+    """
+    This function handles the entire process:
+    1. Fetches the base and head commit SHAs for the PR.
+    2. Retrieves the value of the specified key from the file at both commits.
+    3. Compares the two values, prints a report, and exits with a status code.
+    """
     # 1. Get the base and head commit SHAs.
-    base_sha, head_sha = get_pr_shas(args.owner, args.repo, args.pr_number)
+    base_sha, head_sha = get_pr_shas(owner, repo, pr_number)
 
-    # 2. Fetch and parse the values of the key from the base and head commits.
-    before_value = get_value_from_commit(
-    args.owner, args.repo, args.file_path, args.key, base_sha
-    )
-    after_value = get_value_from_commit(
-    args.owner, args.repo, args.file_path, args.key, head_sha
-    )
+    # 2. Fetch and parse the values from the commits.
+    before_value = get_value_from_commit(owner, repo, file_path, key, base_sha)
+    after_value = get_value_from_commit(owner, repo, file_path, key, head_sha)
 
     # 3. Compare the results and print the final output.
     print("\n--- Comparison Result ---")
-    print(f"Value(s) in base branch:\n---\n{before_value}\n---")
-    print(f"Value(s) in PR branch:\n---\n{after_value}\n---")
+    print(f"Value in base branch:\n---\n{before_value or 'Not found'}\n---")
+    print(f"Value in PR branch:\n---\n{after_value or 'Not found'}\n---")
 
     if before_value == after_value:
         print("\nNo changes detected for the specified keys.")
@@ -196,6 +201,10 @@ def main():
         print("\nChange detected for one of the specified keys!")
         print("\nCHANGE_FOUND=true")
         sys.exit(1)
+
+def main()-> None:
+    args = parse_args()
+    compare_value(args.owner, args.repo, args.pr_number, args.file_path, args.key)
 
 
 if __name__ == "__main__":
