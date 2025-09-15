@@ -74,6 +74,7 @@ jobs:
         url="repos/$OWNER/$REPO/pulls/${{ env.PR_NUMBER }}/files"
         response=$(gh api "$url" --paginate)
         echo "$response" | jq -r '.[].filename' > filenames.txt
+        cat filenames.txt
         echo "CHANGE_FOUND=false" >> $GITHUB_ENV
         cd cac-content
         has_change() {
